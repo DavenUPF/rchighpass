@@ -8,12 +8,10 @@ RCHighPassPluginAudioProcessor::RCHighPassPluginAudioProcessor()
         .withInput("Input", juce::AudioChannelSet::stereo(), true)
         .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
     parameters(*this, nullptr, juce::Identifier("Params"), createParams()),
-    filterL(44100.0f, 1000.0f), // Inicializaciorrecta
+    filterL(44100.0f, 1000.0f),
     filterR(44100.0f, 1000.0f)
 {
 }
-
-
 
 RCHighPassPluginAudioProcessor::~RCHighPassPluginAudioProcessor()
 {
@@ -25,6 +23,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout RCHighPassPluginAudioProcess
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         "cutoff", "Cutoff", juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.5f), 1000.0f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "gain", "Gain", juce::NormalisableRange<float>(0.0f, 1.0f), 0.5f));
 
     return { params.begin(), params.end() };
 }
@@ -62,13 +63,14 @@ void RCHighPassPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     auto* right = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : nullptr;
 
     float cutoff = *parameters.getRawParameterValue("cutoff");
+    float gain = *parameters.getRawParameterValue("gain");
     filterL.setCutoff(cutoff);
     filterR.setCutoff(cutoff);
 
     for (int i = 0; i < numSamples; ++i)
     {
-        left[i] = filterL.processSample(left[i]);
-        if (right) right[i] = filterR.processSample(right[i]);
+        left[i] = filterL.processSample(left[i]) * gain;
+        if (right) right[i] = filterR.processSample(right[i]) * gain;
     }
 }
 
@@ -94,6 +96,7 @@ void RCHighPassPluginAudioProcessor::setStateInformation(const void* data, int s
         if (xml->hasTagName(parameters.state.getType()))
             parameters.replaceState(juce::ValueTree::fromXml(*xml));
 }
+
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new RCHighPassPluginAudioProcessor();
